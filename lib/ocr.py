@@ -10,7 +10,7 @@ from google.cloud.documentai_v1.types import Document
 project_id = "564920207750"
 location = "us"  # Format is "us" or "eu"
 processor_id = "d3a81dd708e4696a"  # Create processor before running sample
-file_path = "C:/Users/yadav/OneDrive/Desktop/document-backend/rent.pdf"
+file_path = "C:/Users/yadav/OneDrive/Desktop/document-backend/RentDeed.pdf"
 mime_type = "application/pdf"  # Refer to supported file types doc
 
 # Optional overrides (explicitly defined to avoid NameError)
@@ -71,16 +71,17 @@ def process_document_sample(
     # For a full list of `Document` object attributes, reference this page:
     # https://cloud.google.com/document-ai/docs/reference/rest/v1/Document
     document = result.document
-    print(type(document))
+    # print(type(document))
     document = Document.to_json(document)
+    document = json.loads(document)
     # Read the text recognition output from the processor
     return document
     
 
 if __name__ == "__main__":
     document = process_document_sample(file_path=file_path)
-    with open("output.txt", "w", encoding="utf-8") as f:
-        json.dump(document, f, ensure_ascii=False, indent=4)
+    with open("output.json", "w", encoding="utf-8") as f:
+        json.dump(document, f, ensure_ascii=False, indent=2)
     print("Document processing complete.")
 
 # [END documentai_process_document]

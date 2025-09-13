@@ -11,12 +11,21 @@ from . import ocr
 app = FastAPI(title="Document AI OCR API", version="0.1.0")
 
 
+@app.get("/")
+async def root():
+    return {
+        "message": "Welcome to Document AI OCR API",
+        "docs_url": "/docs",
+        "health_check": "/health"
+    }
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
 
 
-@app.post("/ocr:text", response_class=PlainTextResponse, summary="Extract plain text from uploaded file")
+@app.post("/ocr:text", summary="Extract plain text from uploaded file")
 async def ocr_text(file: UploadFile = File(...)):
     """Accept a file upload, persist temporarily, run Document AI OCR, return plain text."""
     # Derive a safe suffix from original filename (helps Document AI infer type via mime argument we already set internally)
@@ -35,7 +44,7 @@ async def ocr_text(file: UploadFile = File(...)):
 
         # Call OCR with the filesystem path
         text = ocr.process_document_sample(file_path=tmp_path)
-        return text
+        return JSONResponse(text)
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=400, detail=str(e))
     finally:
