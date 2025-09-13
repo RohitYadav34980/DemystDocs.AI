@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.env
+venv/
+airy-strength-472009-q0-333fabafed6a.json
+rent.pdf
+RentDeed.pdf
+.mypy_cache/
+.idea/
+.vscode/
+*.db
+alembic.ini
+migrations/versions/__pycache__/
