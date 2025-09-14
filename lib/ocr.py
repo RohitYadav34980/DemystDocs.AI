@@ -1,5 +1,7 @@
 import json
 import os
+import uuid
+from supabase import create_client, Client
 from dotenv import load_dotenv
 from google.api_core.client_options import ClientOptions
 from typing import Optional
@@ -9,13 +11,16 @@ from google.cloud.documentai_v1.types import Document
 load_dotenv()  # Load environment variables from .env file
 # Simplified hardened sample for processing a local PDF with Document AI.
 
-# TODO(developer): Uncomment these variables before running the sample.
 project_id = os.getenv("PROJECT_ID")  # e.g. "my-project-id"
 location = os.getenv("LOCATION")  # Format is "us" or "eu"
 processor_id = os.getenv("PROCESSOR_ID")  # Create processor before running sample
-file_path = "path/to/local/file.pdf"
+file_path = "rent.pdf"
 mime_type = "application/pdf"  # Refer to supported file types doc
 
+# Initialize Supabase client
+url: str = os.environ.get("SUPABASE_URL")
+key: str = os.environ.get("SUPABASE_KEY")
+supabase: Client = create_client(url, key)
 # Optional overrides (explicitly defined to avoid NameError)
 field_mask: Optional[str] = None  # e.g. "text,entities,pages.pageNumber"
 processor_version_id: Optional[str] = None  # e.g. "YOUR_PROCESSOR_VERSION_ID"
@@ -77,8 +82,27 @@ def process_document_sample(
     # print(type(document))
     document = Document.to_json(document)
     document = json.loads(document)
+
+    # push file to supabase
+    file_path = f"ocr/{str(uuid.uuid4())}.json"
+    response  = (
+        supabase.storage
+        .from_("ocr_bucket")
+        .upload(
+            path=file_path,
+            file = json.dumps(document).encode('utf-8'),
+        )
+    )
+    
+    #get public url
+    public_url = (
+        supabase.storage
+        .from_("ocr_bucket")
+        .get_public_url(file_path)
+    )
+    print("File uploaded to Supabase Storage.")
     # Read the text recognition output from the processor
-    return document
+    return public_url
     
 
 if __name__ == "__main__":
