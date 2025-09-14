@@ -17,14 +17,14 @@ processor_id = os.getenv("PROCESSOR_ID")  # Create processor before running samp
 file_path = "rent.pdf"
 mime_type = "application/pdf"  # Refer to supported file types doc
 
-# Initialize Supabase client
-url: str = os.environ.get("SUPABASE_URL")
-key: str = os.environ.get("SUPABASE_KEY")
-supabase: Client = create_client(url, key)
 # Optional overrides (explicitly defined to avoid NameError)
 field_mask: Optional[str] = None  # e.g. "text,entities,pages.pageNumber"
 processor_version_id: Optional[str] = None  # e.g. "YOUR_PROCESSOR_VERSION_ID"
 
+# Initialize Supabase client
+url: str = os.environ.get("SUPABASE_URL")
+key: str = os.environ.get("SUPABASE_KEY")
+supabase: Client = create_client(url, key)
 
 def process_document_sample(
     file_path: str,
@@ -79,7 +79,7 @@ def process_document_sample(
     # For a full list of `Document` object attributes, reference this page:
     # https://cloud.google.com/document-ai/docs/reference/rest/v1/Document
     document = result.document
-    # print(type(document))
+
     document = Document.to_json(document)
     document = json.loads(document)
 
@@ -101,8 +101,8 @@ def process_document_sample(
         .get_public_url(file_path)
     )
     print("File uploaded to Supabase Storage.")
-    # Read the text recognition output from the processor
-    return public_url
+
+    return {"url" : public_url}
     
 
 if __name__ == "__main__":
@@ -111,4 +111,3 @@ if __name__ == "__main__":
         json.dump(document, f, ensure_ascii=False, indent=2)
     print("Document processing complete.")
 
-# [END documentai_process_document]
