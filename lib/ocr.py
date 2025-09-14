@@ -1,16 +1,19 @@
 import json
+import os
+from dotenv import load_dotenv
 from google.api_core.client_options import ClientOptions
 from typing import Optional
 from google.cloud import documentai  # type: ignore
 from google.cloud.documentai_v1.types import Document
 
+load_dotenv()  # Load environment variables from .env file
 # Simplified hardened sample for processing a local PDF with Document AI.
 
 # TODO(developer): Uncomment these variables before running the sample.
-project_id = "564920207750"
-location = "us"  # Format is "us" or "eu"
-processor_id = "d3a81dd708e4696a"  # Create processor before running sample
-file_path = "C:/Users/yadav/OneDrive/Desktop/document-backend/RentDeed.pdf"
+project_id = os.getenv("PROJECT_ID")  # e.g. "my-project-id"
+location = os.getenv("LOCATION")  # Format is "us" or "eu"
+processor_id = os.getenv("PROCESSOR_ID")  # Create processor before running sample
+file_path = "path/to/local/file.pdf"
 mime_type = "application/pdf"  # Refer to supported file types doc
 
 # Optional overrides (explicitly defined to avoid NameError)
