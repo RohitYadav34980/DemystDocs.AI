@@ -1,12 +1,12 @@
 """FastAPI wrapper exposing Document AI OCR functionality."""
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
-from fastapi.responses import JSONResponse, PlainTextResponse
-from typing import List, Optional
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Query
+from fastapi.responses import JSONResponse
 import os
 import tempfile
 import pathlib
 
-from . import ocr
+from lib import ocr
+from lib.get_summary import get_summary as generate_summary
 
 app = FastAPI(title="Document AI OCR API", version="0.1.0")
 
@@ -54,3 +54,32 @@ async def ocr_text(file: UploadFile = File(...)):
             except OSError:
                 pass
 
+@app.post("/get_summary", summary="Get summary of uploaded file")
+async def get_summary_endpoint(request: Request, file_path: str = Query(default=None)):
+    """Accept a Supabase file path (via query param ?file_path=... or JSON body {"file_path": "..."}) and return a summary."""
+    try:
+        # Allow both query param and JSON body
+        if not file_path:
+            try:
+                body = await request.json()
+                if isinstance(body, dict):
+                    file_path = body.get("file_path")
+            except Exception:
+                # No/invalid JSON body; fall through to validation below
+                pass
+
+        if not file_path or not isinstance(file_path, str):
+            raise HTTPException(status_code=422, detail="file_path is required")
+
+        # Normalize: strip public URL prefix if provided
+        prefix = "https://jmyrzhpfzcaebymsmjcm.supabase.co/storage/v1/object/public/ocr_bucket/"
+        if file_path.startswith(prefix):
+            file_path = file_path.replace(prefix, "", 1)
+
+        summary = await generate_summary(file_path=file_path)
+        return JSONResponse(summary)
+    except HTTPException:
+        # Re-raise HTTP exceptions untouched
+        raise
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=str(e))
