@@ -14,9 +14,6 @@ load_dotenv()
 # --- 1. Configuration - Replace with your values ---
 PROJECT_ID = os.getenv("PROJECT_ID")
 LOCATION = "us-central1"  # e.g., us-central1
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-if GOOGLE_API_KEY:
-    genai.configure(api_key=GOOGLE_API_KEY)
 
 # Make sure you have created this index in the Google Cloud Console
 VECTOR_SEARCH_INDEX_ID = os.getenv("VECTOR_SEARCH_INDEX_ID")
@@ -104,7 +101,7 @@ def create_chunks_from_doc_ai_json(file_path: str, DOCUMENT_ID: str) -> List[Dic
     """
     Loads a Document AI JSON response and extracts paragraphs as text chunks.
     """
-    print("Step 1: Starting the chunking process...")
+    #print("Step 1: Starting the chunking process...")
     
     response = supabase.storage.from_(bucket).download(file_path)
     doc_ai_json = json.loads(response)
@@ -128,7 +125,7 @@ def create_chunks_from_doc_ai_json(file_path: str, DOCUMENT_ID: str) -> List[Dic
                     "page_number": page_num + 1
                 })
     
-    print(f"-> Successfully created {len(chunks)} chunks.")
+    #print(f"-> Successfully created {len(chunks)} chunks.")
     return chunks
 
 # --- Step 2: Embedding ---
@@ -136,7 +133,7 @@ def embed_text_chunks(chunks: List[Dict]) -> List[Dict]:
     """
     Takes a list of chunk dicts and adds a vector embedding to each.
     """
-    print("Step 2: Starting the embedding process...")
+    #print("Step 2: Starting the embedding process...")
     
     # Deduplicate and filter again defensively
     seen = set()
@@ -151,7 +148,7 @@ def embed_text_chunks(chunks: List[Dict]) -> List[Dict]:
         filtered_chunks.append(ch)
 
     if not filtered_chunks:
-        print("-> No valid chunks to embed after filtering.")
+        #print("-> No valid chunks to embed after filtering.")
         return []
 
     model = TextEmbeddingModel.from_pretrained("text-embedding-004")
@@ -165,13 +162,13 @@ def embed_text_chunks(chunks: List[Dict]) -> List[Dict]:
         batch = text_to_embed[i:i + batch_size]
         embeddings = model.get_embeddings(batch)
         all_embeddings.extend(embeddings)
-        print(f"  -> Embedded batch {i // batch_size + 1} ({len(batch)} texts)")
+        #print(f"  -> Embedded batch {i // batch_size + 1} ({len(batch)} texts)")
 
     # Add the vector back to its corresponding chunk dict
     for i, chunk in enumerate(filtered_chunks):
         chunk['vector'] = all_embeddings[i].values
     
-    print(f"-> Successfully embedded all {len(filtered_chunks)} chunks (from {len(chunks)} input chunks).")
+    #print(f"-> Successfully embedded all {len(filtered_chunks)} chunks (from {len(chunks)} input chunks).")
     return filtered_chunks
 
 # --- Step 3: Storing & Indexing ---
@@ -179,7 +176,7 @@ def store_vectors_in_vector_search(chunks_with_vectors: List[Dict]):
     """
     Upserts the vectors into the specified Vertex AI Vector Search index.
     """
-    print("Step 3: Storing vectors in Vector Search...")
+    #print("Step 3: Storing vectors in Vector Search...")
     
     aiplatform.init(project=PROJECT_ID, location=LOCATION)
     
@@ -212,106 +209,7 @@ def store_vectors_in_vector_search(chunks_with_vectors: List[Dict]):
         # Upsert into the index
         index.upsert_datapoints(datapoints=batch)
 
-    print(f"-> Successfully stored {len(datapoints_to_upsert)} vectors.")
-
-# --- Step 4: Retrieving & Generating (The Q&A function) ---
-def answer_user_question(question: str, document_id: str, original_chunks: List[Dict]) -> str:
-    """
-    Answers a user's question by performing a RAG pipeline search.
-    """
-    print("\n--- Starting RAG process for a new question ---")
-    print(f"Question: {question}")
-
-    # Initialize models and index endpoint
-    aiplatform.init(project=PROJECT_ID, location=LOCATION)
-    embedding_model = TextEmbeddingModel.from_pretrained("text-embedding-004")
-    model = genai.GenerativeModel("gemini-2.5-flash")
-    index_endpoint = aiplatform.MatchingEngineIndexEndpoint(
-        index_endpoint_name=VECTOR_SEARCH_ENDPOINT_ID
-    )
-
-    # 1. Embed the user's question
-    embedding_response = embedding_model.get_embeddings([question])
-    question_embedding = embedding_response[0].values
-    print("1. Question embedded.")
-
-    # 2. Search the index for relevant chunks, filtering by document_id
-    search_results = index_endpoint.find_neighbors(
-        deployed_index_id=DEPLOYED_INDEX_ID,
-        queries=[question_embedding],
-        num_neighbors=25,
-        filter=[ Namespace(name="document_id", allow_tokens=[document_id], deny_tokens=[]) ],
-    )
-    print("2. Vector search complete.")
-
-    # 3. Retrieve and post-filter the top matching chunks
-    chunks_map = {
-        chunk['id']: chunk['text']
-        for chunk in original_chunks
-        if chunk.get('document_id') == document_id
-    }
-
-    relevant_texts: List[str] = []
-    if search_results and search_results[0]:
-        for match in search_results[0]:
-            # In your SDK, neighbor ID may be 'id' or 'datapoint_id'
-            chunk_id = getattr(match, "datapoint_id", None) or getattr(match, "id", None)
-            if not chunk_id:
-                continue
-
-            context_text = _normalize_ws(chunks_map.get(chunk_id, ""))
-            if not context_text or _is_low_value(context_text):
-                continue
-            if context_text.lower() in {t.lower() for t in relevant_texts}:
-                continue
-            relevant_texts.append(context_text)
-            if len(relevant_texts) >= MAX_CONTEXT_CHUNKS:
-                break
-
-    # Fallback: relax filters if fewer than MIN_CONTEXT_CHUNKS
-    if len(relevant_texts) < MIN_CONTEXT_CHUNKS and search_results and search_results[0]:
-        for match in search_results[0]:
-            if len(relevant_texts) >= MIN_CONTEXT_CHUNKS:
-                break
-
-            chunk_id = getattr(match, "datapoint_id", None) or getattr(match, "id", None)
-            if not chunk_id:
-                continue
-
-            context_text = _normalize_ws(chunks_map.get(chunk_id, ""))
-            if not context_text:
-                continue
-            if _looks_like_heading(context_text):
-                continue
-            if _is_mostly_non_alpha(context_text):
-                continue
-            if context_text.lower() in {t.lower() for t in relevant_texts}:
-                continue
-            relevant_texts.append(context_text)
-
-
-    relevant_context = "\n\n".join(relevant_texts)
-    print("3. Retrieved context from original chunks.")
-    print("Relevant Context:\n", relevant_context)
-
-    # 4. Construct the final prompt
-    final_prompt = f"""
-    You are a helpful assistant. Answer the user's question based ONLY on the context provided below.
-    If the answer is not in the context, clearly state that you could not find the answer in the document.
-
-    Context:
-    ---
-    {relevant_context}
-    ---
-
-    Question: {question}
-    """
-
-    # 5. Get the final answer from the generation model
-    response = model.generate_content(final_prompt)
-    print("4. Generated final answer from Gemini.")
-
-    return response.text.strip()
+    #print(f"-> Successfully stored {len(datapoints_to_upsert)} vectors.")
 
 
 def create_rag(file_path: str):
@@ -331,7 +229,7 @@ def create_rag(file_path: str):
     # 3. Storing
     store_vectors_in_vector_search(chunks_with_vectors)
     
-    print("\n--- Document processing and indexing complete. The system is ready for questions. ---\n")
+    #print("\n--- Document processing and indexing complete. The system is ready for questions. ---\n")
     
     return 
                                
@@ -342,7 +240,7 @@ if __name__ == "__main__":
     # 1. Chunking
     bucket_file_path = LOCAL_JSON_FILE_PATH.replace("https://jmyrzhpfzcaebymsmjcm.supabase.co/storage/v1/object/public/ocr_bucket/", "")
     document_id = bucket_file_path[5:-5:]
-    print(f"Document ID: {document_id}")
+    #print(f"Document ID: {document_id}")
     chunks = create_chunks_from_doc_ai_json(bucket_file_path,document_id)
     
     # 2. Embedding
@@ -351,14 +249,4 @@ if __name__ == "__main__":
     # # 3. Storing
     store_vectors_in_vector_search(chunks_with_vectors)
     
-    print("\n--- Document processing and indexing complete. The system is ready for questions. ---\n")
-    
-    # --- This part runs EVERY TIME a user asks a question about that document ---
-    # Example questions to test the system
-    question_1 = "What is the name of the Tenant?"
-    answer_1 = answer_user_question(question_1, document_id, chunks)
-    print("\nFinal Answer 1:\n", answer_1)
-
-    question_2 = "What is the monthly rent amount?"
-    answer_2 = answer_user_question(question_2, document_id, chunks)
-    print("\nFinal Answer 2:\n", answer_2)
+    ##print("\n--- Document processing and indexing complete. The system is ready for questions. ---\n")

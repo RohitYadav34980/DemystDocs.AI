@@ -7,6 +7,7 @@ import pathlib
 
 from lib import ocr
 from lib.get_summary import get_summary as generate_summary
+from lib.get_answer import answer_user_question
 
 app = FastAPI(title="Document AI OCR API", version="0.1.0")
 
@@ -78,6 +79,36 @@ async def get_summary_endpoint(request: Request, file_path: str = Query(default=
 
         summary = await generate_summary(file_path=file_path)
         return JSONResponse(summary)
+    except HTTPException:
+        # Re-raise HTTP exceptions untouched
+        raise
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=str(e))
+    
+@app.post("/ask", summary="Ask a question about the uploaded file")
+async def ask_question_endpoint(request: Request, question: str = Query(default=None), file_path: str = Query(default=None)):
+    """Accept a question and a Supabase file path (via query params ?question=...&file_path=... or JSON body {"question": "...", "file_path": "..."}) and return an answer."""
+    try:
+        # Allow both query params and JSON body
+        if not question or not file_path:
+            try:
+                body = await request.json()
+                if isinstance(body, dict):
+                    if not question:
+                        question = body.get("question")
+                    if not file_path:
+                        file_path = body.get("file_path")
+            except Exception:
+                # No/invalid JSON body; fall through to validation below
+                pass
+
+        if not question or not isinstance(question, str):
+            raise HTTPException(status_code=422, detail="question is required")
+        if not file_path or not isinstance(file_path, str):
+            raise HTTPException(status_code=422, detail="file_path is required")
+
+        response = answer_user_question(question=question, file_url=file_path)
+        return JSONResponse({"response": response})
     except HTTPException:
         # Re-raise HTTP exceptions untouched
         raise
