@@ -32,7 +32,7 @@ async def get_summary(file_path: str) -> Dict[str, str]:
 
     def _download_and_generate() -> str:
         resp = supabase.storage.from_(bucket).download(file_path)
-        print(f"=============Downloaded file content from supabase")  # Print first 100 characters for debugging
+        # print(f"=============Downloaded file content from supabase")  # Print first 100 characters for debugging
         decoded = resp.decode("utf-8") if isinstance(resp, (bytes, bytearray)) else str(resp)
         try:
             data = json.loads(decoded)

@@ -1,11 +1,9 @@
-import json
 import os
 from dotenv import load_dotenv
-from typing import List, Dict
+from typing import List
 
 from google.cloud import aiplatform
-from google.cloud.aiplatform_v1beta1.types import FindNeighborsRequest, IndexDatapoint
-from google.cloud.aiplatform.matching_engine.matching_engine_index_endpoint import Namespace, NumericNamespace
+from google.cloud.aiplatform.matching_engine.matching_engine_index_endpoint import Namespace
 import google.generativeai as genai
 from vertexai.language_models import TextEmbeddingModel
 from .rag_builder import create_chunks_from_doc_ai_json

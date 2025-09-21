@@ -1,6 +1,7 @@
 """FastAPI wrapper exposing Document AI OCR functionality."""
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Query
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 import os
 import tempfile
 import pathlib
@@ -10,6 +11,32 @@ from lib.get_summary import get_summary as generate_summary
 from lib.get_answer import answer_user_question
 
 app = FastAPI(title="Document AI OCR API", version="0.1.0")
+
+# CORS configuration
+# Prefer explicit origins from env (comma-separated) e.g. "https://your-frontend.app, http://localhost:5173"
+_env_origins = os.getenv("ALLOWED_ORIGINS", "").strip()
+_wildcard = _env_origins == "*"
+if _env_origins and not _wildcard:
+    _origins = [o.strip() for o in _env_origins.split(",") if o.strip()]
+else:
+    # Sensible local defaults (Vite dev and preview, common React port)
+    _origins = [
+        "https://demystdocs-ai.vercel.app",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:4173",
+        "http://127.0.0.1:4173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"] if _wildcard else _origins,
+    allow_credentials=False if _wildcard else True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/")
