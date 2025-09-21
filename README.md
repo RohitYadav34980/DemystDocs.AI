@@ -82,3 +82,9 @@ Update `env.py` to use the `engine` from `app.db.session`.
 
 Health:
 GET /api/v1/health/
+
+## Diagrams
+
+For high-level process and use-case diagrams, see:
+
+- docs/diagrams.md
