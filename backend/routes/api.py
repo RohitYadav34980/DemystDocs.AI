@@ -5,11 +5,13 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 import tempfile
 import pathlib
+from dotenv import load_dotenv
 
 from lib import ocr
 from lib.get_summary import get_summary as generate_summary
 from lib.get_answer import answer_user_question
 
+load_dotenv()
 app = FastAPI(title="Document AI OCR API", version="0.1.0")
 
 # CORS configuration
