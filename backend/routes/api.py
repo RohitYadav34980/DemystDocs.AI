@@ -21,7 +21,6 @@ _wildcard = _env_origins == "*"
 if _env_origins and not _wildcard:
     _origins = [o.strip() for o in _env_origins.split(",") if o.strip()]
 else:
-    # Sensible local defaults (Vite dev and preview, common React port)
     _origins = [
         "https://demystdocs-ai.vercel.app",
         "http://localhost:5173",
@@ -35,9 +34,10 @@ else:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"] if _wildcard else _origins,
-    allow_credentials=False if _wildcard else True,
+    allow_credentials=True,   
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],     
 )
 
 
