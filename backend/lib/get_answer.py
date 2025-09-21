@@ -162,17 +162,16 @@ def answer_user_question(question: str, file_url: str) -> str:
 
     # 4. Construct the final prompt
     final_prompt = f"""
-    You are a helpful assistant. Answer the user's question based ONLY on the context provided below.
-    If the answer is not in the context, clearly state that you could not find the answer in the document.
-    Always reply in a beginners english tone.
-    The answer should be elaborate and detailed.
+        You are a helpful assistant. Your task is to answer the user’s question using only the information provided in the given context.
+            - If the context does not contain the answer, clearly state: “I could not find the answer in the document.”
+            - Always explain in beginner-friendly English, avoiding jargon and complex terms.
+            - The explanation should be detailed, clear, and easy to follow, so that even someone new to the topic can understand.
+            - Do not add knowledge outside the context.
+        ---
+        context: {relevant_context}
+        ---
 
-    Context:
-    ---
-    {relevant_context}
-    ---
-
-    Question: {question}
+        Question: {question}
     """
 
     # 5. Get the final answer from the generation model

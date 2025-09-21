@@ -229,7 +229,7 @@ def get_risk_statments(file_url: str):
                 items.append({"statement": stmt.strip(), "explanation": expl.strip()})
 
         result = {"risk_statment": items}
-        print(result)
+        # print(result)
         return result
     except Exception as e:
         raise Exception(f"Error in get_risk_statments: {str(e)}")
