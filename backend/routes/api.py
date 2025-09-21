@@ -10,27 +10,12 @@ from dotenv import load_dotenv
 from lib import ocr
 from lib.get_summary import get_summary as generate_summary
 from lib.get_answer import answer_user_question
+from lib.get_risk import get_risk_statments 
 
 load_dotenv()
 app = FastAPI(title="Document AI OCR API", version="0.1.0")
 
 # CORS configuration
-# Prefer explicit origins from env (comma-separated) e.g. "https://your-frontend.app, http://localhost:5173"
-_env_origins = os.getenv("ALLOWED_ORIGINS", "").strip()
-_wildcard = _env_origins == "*"
-if _env_origins and not _wildcard:
-    _origins = [o.strip() for o in _env_origins.split(",") if o.strip()]
-else:
-    _origins = [
-        "https://demystdocs-ai.vercel.app",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:4173",
-        "http://127.0.0.1:4173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ]
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -138,6 +123,32 @@ async def ask_question_endpoint(request: Request, question: str = Query(default=
 
         response = answer_user_question(question=question, file_url=file_path)
         return JSONResponse({"response": response})
+    except HTTPException:
+        # Re-raise HTTP exceptions untouched
+        raise
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/get_risk", summary="Get risk statements from uploaded file")
+async def get_risk_endpoint(request: Request, file_path: str = Query(default=None)):
+    """Accept a Supabase file path (via query param ?file_path=... or JSON body {"file_path": "..."}) and return risk statements."""
+    try:
+        # Allow both query param and JSON body
+        if not file_path:
+            try:
+                body = await request.json()
+                if isinstance(body, dict):
+                    file_path = body.get("file_path")
+            except Exception:
+                # No/invalid JSON body; fall through to validation below
+                pass
+
+        if not file_path or not isinstance(file_path, str):
+            raise HTTPException(status_code=422, detail="file_path is required")
+
+        risk_statements = get_risk_statments(file_url=file_path)
+        return JSONResponse(risk_statements)
     except HTTPException:
         # Re-raise HTTP exceptions untouched
         raise
