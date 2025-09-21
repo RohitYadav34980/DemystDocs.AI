@@ -26,7 +26,7 @@ async def health():
     return {"status": "ok"}
 
 
-@app.post("/ocr:text", summary="Extract plain text from uploaded file")
+@app.post("/get_ocr", summary="Extract plain text from uploaded file")
 async def ocr_text(file: UploadFile = File(...)):
     """Accept a file upload, persist temporarily, run Document AI OCR, return plain text."""
     # Derive a safe suffix from original filename (helps Document AI infer type via mime argument we already set internally)
