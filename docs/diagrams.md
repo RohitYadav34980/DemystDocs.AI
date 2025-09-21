@@ -361,3 +361,130 @@ flowchart TB
   - Vertex AI Text Embeddings and Matching Engine for vector search
   - Gemini for summarization, Q and A, and risk extraction
   - Supabase Storage for OCR JSON
+
+---
+
+## Deployment topology
+
+```mermaid
+flowchart LR
+  subgraph UserDevice[User Devices]
+    browser[Browser]
+  end
+
+  subgraph CDN[Static Hosting/CDN]
+    spa[React SPA]
+  end
+
+  subgraph BackendHost[Backend Hosting]
+    fastapi[FastAPI Service]
+  end
+
+  subgraph GCP[Google Cloud]
+    docai[Document AI]
+    vertex[Vertex AI Vector Search]
+  gemini[Gemini Generative API]
+  end
+
+  subgraph Supabase[Supabase]
+    storage[(Storage: ocr_bucket)]
+  end
+
+  browser --> spa
+  spa -->|/api/*| fastapi
+  fastapi --> docai
+  fastapi --> storage
+  fastapi --> vertex
+  fastapi --> gemini
+```
+
+## Backend components
+
+```mermaid
+classDiagram
+  class API {
+    +POST /get_ocr(file)
+    +POST /get_summary(file_path)
+    +POST /ask(question, file_path)
+    +POST /get_risk(file_path)
+  }
+  class OCR {
+    +process_document_sample(file_path) dict
+    -Document AI client
+    -Supabase upload
+  }
+  class RAGBuilder {
+    +create_rag(file_path)
+    +create_chunks_from_doc_ai_json()
+    +embed_text_chunks()
+    +store_vectors_in_vector_search()
+  }
+  class Summary {
+    +get_summary(file_path) dict
+    -Gemini generate
+  }
+  class Answer {
+    +answer_user_question(question, file_url) str
+    -Embed question
+    -find_neighbors
+    -prompt Gemini
+  }
+  class Risk {
+    +get_risk_statments(file_url) dict
+    -Prompt Gemini
+    -JSON extraction
+  }
+
+  API --> OCR
+  API --> Summary
+  API --> Answer
+  API --> Risk
+  Summary --> RAGBuilder
+```
+
+## Data lifecycle
+
+```mermaid
+stateDiagram-v2
+  [*] --> UploadedFile
+  UploadedFile --> OCR_JSON: Document AI OCR
+  OCR_JSON --> StoredPublicURL: Upload to Supabase
+  StoredPublicURL --> SummarizedText: Summarize (Gemini)
+  OCR_JSON --> ChunkedVectors: Chunk+Embed (Vertex)
+  ChunkedVectors --> RetrievedContext: Query (find_neighbors)
+  RetrievedContext --> AnswerText: Generate (Gemini)
+  OCR_JSON --> RiskList: Extract risks (Gemini)
+  SummarizedText --> [*]
+  AnswerText --> [*]
+  RiskList --> [*]
+```
+
+## Security & secrets flow
+
+```mermaid
+flowchart TB
+  subgraph FE[Frontend]
+    user[User]
+    app[React App]
+  end
+  subgraph BE[Backend]
+    api[FastAPI]
+    env[(.env + Service Account)]
+  end
+  subgraph Ext[External]
+    docai[Document AI]
+    supabase[(Supabase Storage)]
+    vertex[Vertex AI]
+    gemini[Gemini]
+  end
+
+  user --> app --> api
+  api --> env
+  env -. credentials .- docai
+  env -. credentials .- vertex
+  env -. keys .- gemini
+  env -. supabase keys .- supabase
+
+  classDef danger fill:#fee2e2,stroke:#ef4444,color:#991b1b
+  env:::danger
+```
