@@ -44,7 +44,7 @@ export default function UploadPage() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const uploadRes = await axios.post("/api/get_ocr", formData, {
+      const uploadRes = await axios.post("https://demystdocs-ai.onrender.com/get_ocr", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
